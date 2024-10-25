@@ -13,18 +13,23 @@ const io = new Server(server, {
   }
 });
 
-
 // Express route
-app.get("/", (req, res) => {
-  res.send("Hello from Express");
-});
 
+// Socket.IO connection
+const chatNamespace = io.of("/chat");
+chatNamespace.on("connect", (socket) => {
+  console.log("User connected to chat namespace" ,socket.id);
+  socket.on("message", (msg) => {
+      console.log("Received message",msg);
+    chatNamespace.emit("rcv_message", msg);
+  });
+});
 
 const userMap=new Map();
 // Socket.IO connection
 io.on("connection", (socket) => {
     // Add user to userMap
-        // console.log(`User connected: ${socket.id}`);
+        console.log(`User connected: ${socket.id}`);
     userMap.set(socket.handshake.query.id, socket.id);
   //send msg
   socket.on("private_message", (msg) => {
@@ -66,6 +71,23 @@ socket.on("group_message", (msg) => {
 
 }
 )
+
+socket.on("room_join", (room) => {
+  socket.join(room.room);
+  console.log(`User ${socket.id} joined room ${room.room}`);
+})
+
+  // Leave a room
+  socket.on('leaveRoom', (room) => {
+    socket.leave(room);
+    console.log(`User ${socket.id} left room: ${room}`);
+  });
+
+
+ // Broadcast message to a specific room
+ socket.on('messageToRoom', (data) => {
+  io.to(data.room).emit('rcv_message', data.msg);
+});
   // Handle socket events
   socket.on("disconnect", () => {
     console.log("User disconnected");
